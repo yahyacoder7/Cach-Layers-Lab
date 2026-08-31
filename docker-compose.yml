@@ -1,0 +1,57 @@
+# docker-compose.yml
+# Infrastructure for the "3 caching concepts" lab: Redis (cache) + PostgreSQL (source of truth)
+
+# `services` -> the list of containers (the "apps") you want Docker to run.
+services:
+  # Define the Redis container service (I chose the name `redis` for it).
+  redis:
+    # which IMAGE to build the container from. This reuses the redis image already on your PC.
+    image: redis:latest
+    # pull_policy: when to download the image. `if_not_present` = use local image, pull only if missing.
+    pull_policy: if_not_present
+    # container_name: the fixed NAME Docker gives to this NEW container (independent of the image name).
+    container_name: cache-redis
+    # ports: map a host port to a container port, format "host:container".
+    ports:
+      # host 6379 -> container 6379 (so you connect to Redis on localhost:6379). Quoted to be YAML-safe.
+      - "6379:6379"
+    # volumes: attach storage so data survives container restarts/removal.
+    volumes:
+      # redis-data (name) -> /data (path INSIDE the container where Redis stores its data).
+      - redis-data:/data
+    # restart: auto-start policy. `unless-stopped` = restart on crash/reboot, unless you stopped it manually.
+    restart: unless-stopped
+
+  # Define the PostgreSQL container service.
+  postgres:
+    # which IMAGE to build the container from (local postgres image on your PC).
+    image: postgres:latest
+    # pull_policy: use local image; only download if it's missing.
+    pull_policy: if_not_present
+    # container_name: the name Docker gives to this NEW postgres container.
+    container_name: cache-postgres
+    # ports: map host port 5432 -> container port 5432 (Postgres default). Connect on localhost:5432.
+    ports:
+      - "5432:5432"
+    # environment: env variables passed into the container. The official postgres image REQUIRES these.
+    # NOTE: values are referenced from .env (gitignored) so NO secrets are committed.
+    environment:
+      # POSTGRES_USER: the database user name the postgres image will create.
+      POSTGRES_USER: ${POSTGRES_USER}
+      # POSTGRES_PASSWORD: the password for that user (store in .env for real apps!).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # POSTGRES_DB: the default database the image creates for you on first run.
+      POSTGRES_DB: ${POSTGRES_DB}
+    # volumes: attach persistent storage for the postgres data files.
+    volumes:
+      # pgdata-lab (name) -> /var/lib/postgresql (path INSIDE container that the image declares as a volume).
+      - pgdata-lab:/var/lib/postgresql
+    # restart: restart on crash, unless stopped manually.
+    restart: unless-stopped
+
+# volumes: where you DECLARE the named volumes so Docker gives them clean, meaningful names.
+volumes:
+  # declares the "redis-data" volume (a disk Docker manages on your machine).
+  redis-data:
+  # declares the "pgdata-lab" volume (postgres data disk).
+  pgdata-lab:
