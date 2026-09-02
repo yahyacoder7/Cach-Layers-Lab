@@ -11,9 +11,7 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
-// ---------------------------------------------------------------------------
-// الفئات
-// ---------------------------------------------------------------------------
+// Category: product groups/categories (can have a parent for sub-categories)
 model Category {
   id          Int      @id @default(autoincrement())
   name        String
@@ -34,9 +32,7 @@ model Category {
   @@map("categories")
 }
 
-// ---------------------------------------------------------------------------
-// المنتجات (Upstream - مصدر الحقيقة)
-// ---------------------------------------------------------------------------
+// Product: the main item (source of truth / upstream data)
 model Product {
   id             Int      @id @default(autoincrement())
   name           String
@@ -69,9 +65,7 @@ model Product {
   @@map("products")
 }
 
-// ---------------------------------------------------------------------------
-// سجل تغيّر الأسعار - مصدر أحداث إبطال الكاش
-// ---------------------------------------------------------------------------
+// PriceHistory: log of product price changes
 model PriceHistory {
   id        Int      @id @default(autoincrement())
   productId Int      @map("product_id")
@@ -87,9 +81,7 @@ model PriceHistory {
   @@map("price_history")
 }
 
-// ---------------------------------------------------------------------------
-// حركة المخزون - مصدر أحداث إبطال الكاش الثاني
-// ---------------------------------------------------------------------------
+// StockMovement: log of product stock changes (IN = restock, OUT = sold)
 enum StockMovementType {
   IN
   OUT
@@ -112,15 +104,14 @@ model StockMovement {
   @@map("stock_movements")
 }
 
-// ---------------------------------------------------------------------------
-// سجل الكاش - لقياس أداء كل طبقة (Edge / Downstream / Upstream)
-// ---------------------------------------------------------------------------
+// CacheLayer: which cache layer handled the request
 enum CacheLayer {
   EDGE
   DOWNSTREAM
   UPSTREAM
 }
 
+// CacheLog: records each cache request to measure cache performance
 model CacheLog {
   id             Int        @id @default(autoincrement())
   productId      Int?       @map("product_id")
