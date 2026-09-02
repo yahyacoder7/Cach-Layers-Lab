@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+ 
+datasource db {
+  provider = "postgresql"
+}
+// ---------------------------------------------------------------------------
+// الفئات
+// ---------------------------------------------------------------------------
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?
+  imageUrl    String?  @map("image_url")
+
+  parentId    Int?       @map("parent_id")
+  parent      Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+// ---------------------------------------------------------------------------
+// المنتجات (Upstream - مصدر الحقيقة)
+// ---------------------------------------------------------------------------
+model Product {
+  id             Int      @id @default(autoincrement())
+  name           String
+  slug           String   @unique
+  description    String?
+  sku            String   @unique
+
+  price          Decimal  @db.Decimal(10, 2)
+  compareAtPrice Decimal? @map("compare_at_price") @db.Decimal(10, 2)
+  stock          Int      @default(0)
+
+  categoryId     Int      @map("category_id")
+  category       Category @relation(fields: [categoryId], references: [id])
+
+  imageUrl       String?  @map("image_url")
+
+  viewsCount     Int      @default(0) @map("views_count")
+  ratingAverage  Float    @default(0) @map("rating_average")
+  ratingCount    Int      @default(0) @map("rating_count")
+
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at") // يُستخدم لاحقاً في توليد ETag لطبقة الـ Edge
+
+  priceHistory   PriceHistory[]
+  stockMovements StockMovement[]
+  cacheLogs      CacheLog[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+// ---------------------------------------------------------------------------
+// سجل تغيّر الأسعار - مصدر أحداث إبطال الكاش
+// ---------------------------------------------------------------------------
+model PriceHistory {
+  id        Int      @id @default(autoincrement())
+  productId Int      @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  oldPrice  Decimal  @map("old_price") @db.Decimal(10, 2)
+  newPrice  Decimal  @map("new_price") @db.Decimal(10, 2)
+  reason    String?
+
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  @@index([productId])
+  @@map("price_history")
+}
+
+// ---------------------------------------------------------------------------
+// حركة المخزون - مصدر أحداث إبطال الكاش الثاني
+// ---------------------------------------------------------------------------
+enum StockMovementType {
+  IN
+  OUT
+}
+
+model StockMovement {
+  id            Int               @id @default(autoincrement())
+  productId     Int               @map("product_id")
+  product       Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  type          StockMovementType
+  quantity      Int
+  previousStock Int               @map("previous_stock")
+  newStock      Int               @map("new_stock")
+  reason        String?
+
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@index([productId])
+  @@map("stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// سجل الكاش - لقياس أداء كل طبقة (Edge / Downstream / Upstream)
+// ---------------------------------------------------------------------------
+enum CacheLayer {
+  EDGE
+  DOWNSTREAM
+  UPSTREAM
+}
+
+model CacheLog {
+  id             Int        @id @default(autoincrement())
+  productId      Int?       @map("product_id")
+  product        Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  endpoint       String
+  cacheKey       String     @map("cache_key")
+  cacheLayer     CacheLayer @map("cache_layer")
+  hit            Boolean
+  ttlSeconds     Int?       @map("ttl_seconds")
+  responseTimeMs Int        @map("response_time_ms")
+
+  requestedAt    DateTime   @default(now()) @map("requested_at")
+
+  @@index([productId])
+  @@index([cacheKey])
+  @@map("cache_logs")
+}
