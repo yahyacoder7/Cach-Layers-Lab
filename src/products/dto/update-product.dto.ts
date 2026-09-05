@@ -1,4 +1,6 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateProductDto } from './create-product.dto';
+import { z } from 'zod';
+import { createProductSchema } from './create-product.dto';
 
-export class UpdateProductDto extends PartialType(CreateProductDto) {}
+export const updateProductSchema = createProductSchema.partial();
+
+export type UpdateProductDto = z.infer<typeof updateProductSchema>;
