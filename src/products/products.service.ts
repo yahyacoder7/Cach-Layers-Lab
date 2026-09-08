@@ -7,8 +7,15 @@ import type { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(createProductDto: CreateProductDto) {
-    return this.prisma.product.create({ data: createProductDto });
+  async create(createProductDto: CreateProductDto) {
+    const slug = await this.generateUniqueSlug(createProductDto.name);
+
+    const data = {
+      ...createProductDto,
+      slug,
+    };
+
+    return this.prisma.product.create({ data });
   }
 
   findAll() {
@@ -52,5 +59,26 @@ export class ProductsService {
 
     await this.prisma.product.delete({ where: { id } });
     return { id, deleted: true };
+  }
+
+  private slugify(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  private async generateUniqueSlug(name: string): Promise<string> {
+    const base = this.slugify(name);
+    let slug = base;
+    let i = 2;
+
+    while (true) {
+      const existing = await this.prisma.product.findUnique({ where: { slug } });
+      if (!existing) return slug;
+      slug = `${base}-${i}`;
+      i++;
+    }
   }
 }

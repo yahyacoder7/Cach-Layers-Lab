@@ -2,10 +2,7 @@ import { z } from 'zod';
 
 export const createProductSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  slug: z
-    .string()
-    .min(2)
-    .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase, numbers, or dashes'),
+  slug: z.string().optional().default(""),
   sku: z.string().min(3),
   description: z.string().optional(),
   price: z.number().positive().multipleOf(0.01),
