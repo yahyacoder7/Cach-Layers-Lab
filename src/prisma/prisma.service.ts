@@ -17,6 +17,7 @@ extends PrismaClient
       adapter: new PrismaPg({
         connectionString: config.get<string>('DATABASE_URL'),
       }),
+      log: [{ emit: 'event', level: 'query' }, 'warn', 'error']
     });
   }
 
