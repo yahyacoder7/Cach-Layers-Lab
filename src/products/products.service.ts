@@ -1,26 +1,56 @@
-import { Injectable } from '@nestjs/common';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import type { CreateProductDto } from './dto/create-product.dto';
+import type { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
+  constructor(private readonly prisma: PrismaService) {}
+
   create(createProductDto: CreateProductDto) {
-    return 'This action adds a new product';
+    return this.prisma.product.create({ data: createProductDto });
   }
 
   findAll() {
-    return `This action returns all products`;
+    return this.prisma.product.findMany({
+      include: { category: true },
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  async findOne(id: number) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+      include: { category: true },
+    });
+
+    if (!product) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
+    return product;
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: number, updateProductDto: UpdateProductDto) {
+    const existing = await this.prisma.product.findUnique({ where: { id } });
+
+    if (!existing) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
+    return this.prisma.product.update({
+      where: { id },
+      data: updateProductDto,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  async remove(id: number) {
+    const existing = await this.prisma.product.findUnique({ where: { id } });
+
+    if (!existing) {
+      throw new NotFoundException(`Product #${id} not found`);
+    }
+
+    await this.prisma.product.delete({ where: { id } });
+    return { id, deleted: true };
   }
 }
