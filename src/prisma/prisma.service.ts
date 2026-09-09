@@ -10,7 +10,7 @@ export class PrismaService
 extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  private readonly logger = new Logger(PrismaService.name);
+  private readonly logger = new Logger('Database');
 
   constructor(private readonly config: ConfigService) {
     super({
@@ -19,7 +19,13 @@ extends PrismaClient
       }),
       log: [{ emit: 'event', level: 'query' }, 'warn', 'error']
     });
-  }
+    (this as any).$on("query", (e) =>{
+      
+        this.logger.warn(`Query Took: => ${e.duration}ms`) 
+     
+    })
+
+    };
 
   async onModuleInit() {
     try {
