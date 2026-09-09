@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, HttpException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { UpdateProductDto } from './dto/update-product.dto';
+import { Product } from 'generated/prisma/browser';
+import { ProductQueryDto } from './dto/query-products.dto';
 
 @Injectable()
 export class ProductsService {
@@ -75,10 +77,27 @@ export class ProductsService {
     let i = 2;
 
     while (true) {
-      const existing = await this.prisma.product.findUnique({ where: { slug } });
+      const existing = await this.prisma.product.findUnique({
+        where: { slug },
+      });
       if (!existing) return slug;
       slug = `${base}-${i}`;
       i++;
     }
+  }
+
+  async paginatedFindAll(query: ProductQueryDto) {
+    const res =  await this.prisma.product.findMany({
+      cursor: query.cursor ? { id: query.cursor } : undefined,
+      skip: query.cursor ? 1 : 0,
+      take: query.limit,
+      orderBy: { id: 'asc' },
+    });
+    if(res.length === 0){
+      throw new BadRequestException("No more products found")
+    }
+
+
+    return res;
   }
 }
