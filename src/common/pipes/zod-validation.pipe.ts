@@ -1,6 +1,6 @@
 // --- IMPORTS: the tools this pipe needs ----------------------------------------
-import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
-// BadRequestException -> built-in error -> NestJS turns it into a 400 response (bad request)
+import { Injectable, PipeTransform } from '@nestjs/common';
+import * as HttpErrors from '../http-errors';
 // Injectable          -> decorator: marks this class so NestJS can inject/use it
 // PipeTransform       -> interface: forces us to implement a transform() method (NestJS calls it)
 
@@ -33,7 +33,7 @@ export class ZodValidationPipe implements PipeTransform {
       if (error instanceof ZodError) {
         // check: is the thrown error a ZodError (validation problem)?
         // (instanceof = "is this object an instance of the ZodError class?")
-        throw new BadRequestException(
+        throw new HttpErrors.BadRequestException(
           // throw a NestJS error -> the API responds with HTTP 400 Bad Request
           error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`),
           // error.issues = array of every problem Zod found (one per failed field)

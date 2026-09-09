@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException, HttpException, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from 'generated/prisma/browser';
-import { ProductQueryDto } from './dto/query-products.dto';
+import type { ProductQueryDto } from './dto/query-products.dto';
+import * as HttpErrors from '../common/http-errors';
 
 @Injectable()
 export class ProductsService {
@@ -33,7 +33,7 @@ export class ProductsService {
     });
 
     if (!product) {
-      throw new NotFoundException(`Product #${id} not found`);
+      throw new HttpErrors.NotFoundException(`Product #${id} not found`);
     }
 
     return product;
@@ -43,7 +43,7 @@ export class ProductsService {
     const existing = await this.prisma.product.findUnique({ where: { id } });
 
     if (!existing) {
-      throw new NotFoundException(`Product #${id} not found`);
+      throw new HttpErrors.NotFoundException(`Product #${id} not found`);
     }
 
     return this.prisma.product.update({
@@ -56,7 +56,7 @@ export class ProductsService {
     const existing = await this.prisma.product.findUnique({ where: { id } });
 
     if (!existing) {
-      throw new NotFoundException(`Product #${id} not found`);
+      throw new HttpErrors.NotFoundException(`Product #${id} not found`);
     }
 
     await this.prisma.product.delete({ where: { id } });
@@ -94,7 +94,7 @@ export class ProductsService {
       orderBy: { id: 'asc' },
     });
     if(res.length === 0){
-      throw new BadRequestException("No more products found")
+      throw new HttpErrors.BadRequestException("No more products found")
     }
 
 
