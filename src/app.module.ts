@@ -8,13 +8,15 @@ import { RedisModule } from './redis/redis.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TimingInterceptor } from './common/interceptors/timing.interceptor';
+import { SupabaseService } from './supabase/supabase.service';
+import { SupabaseModule } from './supabase/supabase.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
      PrismaModule,
       ProductsModule, 
-      RedisModule],
+      RedisModule, SupabaseModule],
   controllers: [AppController],
   providers: [
     AppService,
@@ -25,7 +27,8 @@ import { TimingInterceptor } from './common/interceptors/timing.interceptor';
     //   it cannot inject dependencies, so the interceptor could NOT be a class
     //   that needs constructor injection.
     // - Bonus: it is created once with the app context and is testable via TestingModule.
-    { provide: APP_INTERCEPTOR, useClass: TimingInterceptor }
+    { provide: APP_INTERCEPTOR, useClass: TimingInterceptor },
+    SupabaseService
     ],
 })
 export class AppModule { }
