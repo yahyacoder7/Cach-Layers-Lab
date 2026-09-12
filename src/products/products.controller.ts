@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete , Query} from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UploadedFile,
+} from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { createProductSchema } from './dto/create-product.dto';
 import { updateProductSchema } from './dto/update-product.dto';
@@ -7,20 +17,26 @@ import type { UpdateProductDto } from './dto/update-product.dto';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 
 import { productQuerySchema } from './dto/query-products.dto';
-import type { ProductQueryDto } from  './dto/query-products.dto';
+import type { ProductQueryDto } from './dto/query-products.dto';
+
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UseInterceptors } from '@nestjs/common';
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
-  
+
   @Post()
+  @UseInterceptors(FileInterceptor('image'))
   create(
     @Body(new ZodValidationPipe(createProductSchema))
     createProductDto: CreateProductDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.productsService.create(createProductDto);
+    return this.productsService.create(createProductDto, file);
   }
-  @Get("paginated")
+
+  @Get('paginated')
   paginatedFindAll(
     @Query(new ZodValidationPipe(productQuerySchema))
     query: ProductQueryDto,
@@ -51,5 +67,4 @@ export class ProductsController {
   remove(@Param('id') id: string) {
     return this.productsService.remove(+id);
   }
-
 }
