@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { UpdateProductDto } from './dto/update-product.dto';
 import type { ProductQueryDto } from './dto/query-products.dto';
@@ -7,17 +8,42 @@ import * as HttpErrors from '../common/http-errors';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, image?: Express.Multer.File) {
+    // ① stop early if the unique SKU is already taken — before any upload
+    const exists = await this.prisma.product.findUnique({
+      where: { sku: createProductDto.sku },
+    });
+    if (exists) {
+      throw new HttpErrors.ConflictException(
+        `SKU ${createProductDto.sku} already exists`,
+      );
+    }
+
     const slug = await this.generateUniqueSlug(createProductDto.name);
 
-    const data = {
-      ...createProductDto,
-      slug,
-    };
+    let fileUrl: string | null = null;
+    if (image) {
+      const filePath = await this.supabaseService.uploadImage(image);
+      fileUrl = await this.supabaseService.getImageUrl(filePath);
+    }
 
-    return this.prisma.product.create({ data });
+    try {
+      return await this.prisma.product.create({
+        data: { ...createProductDto, slug, imageUrl: fileUrl },
+      });
+    } catch (e) {
+      if ((e as any).code === 'P2002') {
+        throw new HttpErrors.ConflictException(
+          `SKU ${createProductDto.sku} already exists`,
+        );
+      }
+      throw e;
+    }
   }
 
   findAll() {
@@ -28,7 +54,7 @@ export class ProductsService {
 
   async findOne(id: number) {
     const product = await this.prisma.product.findUnique({
-      where: { id },
+      where: { id: Number(id) },
       include: { category: true },
     });
 
@@ -87,17 +113,15 @@ export class ProductsService {
   }
 
   async paginatedFindAll(query: ProductQueryDto) {
-    const res =  await this.prisma.product.findMany({
+    const res = await this.prisma.product.findMany({
       cursor: query.cursor ? { id: query.cursor } : undefined,
       skip: query.cursor ? 1 : 0,
       take: query.limit,
       orderBy: { id: 'asc' },
     });
-    if(res.length === 0){
-      throw new HttpErrors.BadRequestException("No more products found")
+    if (res.length === 0) {
+      return [];
     }
-
-
     return res;
   }
 }
