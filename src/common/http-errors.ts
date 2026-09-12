@@ -7,6 +7,7 @@
 //
 // To add a new status code later: add it here ONCE, no other file changes.
 export {
+  InternalServerErrorException, //500 - Server side errors
   BadRequestException,   // 400 - the request itself is invalid
   UnauthorizedException, // 401 - not authenticated
   ForbiddenException,    // 403 - authenticated but not allowed
