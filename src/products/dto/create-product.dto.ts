@@ -5,10 +5,11 @@ export const createProductSchema = z.object({
   slug: z.string().optional().default(""),
   sku: z.string().min(3),
   description: z.string().optional(),
-  price: z.number().positive().multipleOf(0.01),
-  compareAtPrice: z.number().positive().multipleOf(0.01).optional(),
-  stock: z.number().int().nonnegative().default(0),
-  categoryId: z.number().int().positive(),
+  price: z.coerce.number().positive().multipleOf(0.01),
+  compareAtPrice: z.coerce.number().positive().multipleOf(0.01).optional(),
+  stock: z.coerce.number().int().nonnegative().default(0),
+  categoryId: z.coerce.number().int().positive(),
+  
   imageUrl: z.string().url().optional(),
 });
 
