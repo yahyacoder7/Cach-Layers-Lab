@@ -41,6 +41,28 @@ export class SupabaseService implements OnModuleInit {
     return publicUrl;
   }
 
+  // Turns a stored public URL back into the bucket-relative key
+  // e.g. ".../object/public/Cach-Lab-Images/product/123.jpg" → "product/123.jpg"
+  extractKeyFromUrl(url: string): string | null {
+   const path = url.split("Cach-Layer-Images/")[1] || null;
+
+   if(!path) return null;
+
+   return path;
+  }
+
+  // Deletes an image from the bucket (rollback/cleanup for replace & failed creates)
+  async deleteImage(filePath: string): Promise<void> {
+    const { error } = await this.client.storage
+      .from('Cach-Lab-Images')
+      .remove([filePath]);
+    if (error) {
+      throw new HttpErrors.InternalServerErrorException(
+        `Supabase Delete Error: ${error.message}`,
+      );
+    }
+  }
+
   async onModuleInit() {
    
       const { data, error } = await this.client.storage.listBuckets();
