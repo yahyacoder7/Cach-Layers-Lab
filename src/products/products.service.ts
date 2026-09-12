@@ -26,18 +26,14 @@ export class ProductsService {
 
     const slug = await this.generateUniqueSlug(createProductDto.name);
 
-    let fileUrl: string | null = null;
-    if (image) {
-      const filePath = await this.supabaseService.uploadImage(image);
-      fileUrl = await this.supabaseService.getImageUrl(filePath);
-    }
+    const imageUrl = await this.resolveImage(image);
 
     try {
       return await this.prisma.product.create({
-        data: { ...createProductDto, slug, imageUrl: fileUrl },
+        data: { ...createProductDto, slug, imageUrl },
       });
     } catch (e) {
-      if ((e as any).code === 'P2002') {
+      if (e.code === 'P2002') {
         throw new HttpErrors.ConflictException(
           `SKU ${createProductDto.sku} already exists`,
         );
@@ -65,17 +61,50 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto) {
+  async update(id: number, updateProductDto: UpdateProductDto , file?: Express.Multer.File) {
     const existing = await this.prisma.product.findUnique({ where: { id } });
 
     if (!existing) {
       throw new HttpErrors.NotFoundException(`Product #${id} not found`);
     }
 
+    // Generate new slug if name changed
+    let newSlug = existing.slug;
+    if (updateProductDto.name && updateProductDto.name !== existing.name) {
+      newSlug = await this.generateUniqueSlug(updateProductDto.name);
+    }
+
+    // Same image logic as create: only upload/delete if a new file came in
+    const imageUrl = await this.resolveImage(file, existing.imageUrl);
+
     return this.prisma.product.update({
       where: { id },
-      data: updateProductDto,
+      data: { ...updateProductDto, slug: newSlug, imageUrl },
     });
+  }
+
+  private async resolveImage(
+    file?: Express.Multer.File,
+    existingUrl?: string | null,
+  ): Promise<string | null> {
+    // No new file → keep whatever was already stored (null on create, old URL on update)
+    if (!file) return existingUrl ?? null;
+
+    // New file arrived → if an old image exists, delete it from the bucket first
+    if (existingUrl) {
+      const oldKey = this.supabaseService.extractKeyFromUrl(existingUrl);
+      if (oldKey) {
+        try {
+          await this.supabaseService.deleteImage(oldKey);
+        } catch (e) {
+          console.warn(`Failed to delete old image: ${(e as Error).message}`);
+        }
+      }
+    }
+
+    // Upload the new one and return its public URL
+    const filePath = await this.supabaseService.uploadImage(file);
+    return this.supabaseService.getImageUrl(filePath);
   }
 
   async remove(id: number) {

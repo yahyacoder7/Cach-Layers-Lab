@@ -55,12 +55,14 @@ export class ProductsController {
   }
 
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('image'))
   update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateProductSchema))
     updateProductDto: UpdateProductDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.productsService.update(+id, updateProductDto);
+    return this.productsService.update(+id, updateProductDto,file);
   }
 
   @Delete(':id')
