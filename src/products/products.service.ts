@@ -5,6 +5,7 @@ import { RedisService } from '../redis/redis.service';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { UpdateProductDto } from './dto/update-product.dto';
 import type { ProductQueryDto } from './dto/query-products.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as HttpErrors from '../common/http-errors';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class ProductsService {
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
     private readonly redisService: RedisService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(
@@ -98,10 +100,12 @@ export class ProductsService {
     // Same image logic as create: only upload/delete if a new file came in
     const imageUrl = await this.resolveImage(file, existing.imageUrl);
 
-    return this.prisma.product.update({
+    const product = await this.prisma.product.update({
       where: { id },
       data: { ...updateProductDto, slug: newSlug, imageUrl },
     });
+    this.eventEmitter.emit('product.updated', product.id);
+    return product;
   }
 
   private async resolveImage(
@@ -136,7 +140,7 @@ export class ProductsService {
     }
 
     await this.prisma.product.delete({ where: { id } });
-
+    this.eventEmitter.emit('product.deleted', id);
     return { id, deleted: true };
   }
 

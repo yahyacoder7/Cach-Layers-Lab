@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import Redis from 'ioredis';          // the Redis client library (talks to Redis server)
 import { ConfigService } from '@nestjs/config'; // reads env vars from .env
-
+import { OnEvent } from '@nestjs/event-emitter';
 // --- CLASS DECLARATION ----------------------------------------------------------
 @Injectable()  // tells NestJS "this class can be injected into other classes"
 export class RedisService implements OnModuleDestroy, OnModuleInit {
@@ -72,6 +72,20 @@ export class RedisService implements OnModuleDestroy, OnModuleInit {
     } catch (error) {
       this.logger.error(`Error deleting key "${key}":`, error);
     }
+  }
+
+
+
+  @OnEvent('product.deleted')
+  async handleProductDeleted(id: number) {
+    await this.del(`product:${id}`);
+    this.logger.log(`Product #${id} cache cleared`);
+  }
+
+  @OnEvent('product.updated')
+  async handleProductUpdated(id: number) {
+    await this.del(`product:${id}`);
+    this.logger.log(`Product #${id} cache cleared`);
   }
 
   // --- LIFE-CYCLE : runs at shutdown and startup ----------------------------------------
