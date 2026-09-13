@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { RedisService } from '../redis/redis.service';
 import type { CreateProductDto } from './dto/create-product.dto';
 import type { UpdateProductDto } from './dto/update-product.dto';
 import type { ProductQueryDto } from './dto/query-products.dto';
@@ -11,10 +12,14 @@ export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
+    private readonly redisService: RedisService,
   ) {}
 
-  async create(createProductDto: CreateProductDto, image?: Express.Multer.File) {
-    // ① stop early if the unique SKU is already taken — before any upload
+  async create(
+    createProductDto: CreateProductDto,
+    image?: Express.Multer.File,
+  ) {
+    // stop early if the unique SKU is already taken — before any upload
     const exists = await this.prisma.product.findUnique({
       where: { sku: createProductDto.sku },
     });
@@ -49,19 +54,35 @@ export class ProductsService {
   }
 
   async findOne(id: number) {
+    const exist = await this.redisService.get(`product:${id}`);
+    
+    if(exist){
+      return JSON.parse(exist); 
+    }
+    
     const product = await this.prisma.product.findUnique({
       where: { id: Number(id) },
-      include: { category: true },
+      include: {
+        category: true,
+        cacheLogs: true,
+        priceHistory: true,
+        stockMovements: true,
+      },
     });
-
+ 
     if (!product) {
       throw new HttpErrors.NotFoundException(`Product #${id} not found`);
     }
 
+    this.redisService.set(`product:${id}`, JSON.stringify(product), 600);
     return product;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto , file?: Express.Multer.File) {
+  async update(
+    id: number,
+    updateProductDto: UpdateProductDto,
+    file?: Express.Multer.File,
+  ) {
     const existing = await this.prisma.product.findUnique({ where: { id } });
 
     if (!existing) {
@@ -115,6 +136,7 @@ export class ProductsService {
     }
 
     await this.prisma.product.delete({ where: { id } });
+
     return { id, deleted: true };
   }
 
